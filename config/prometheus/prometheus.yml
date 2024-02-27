@@ -1,0 +1,52 @@
+# my global config
+global:
+  scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+# DIGUNAKAN UNTUK ROUTER MIKROTIK
+  - job_name: 'mikrotik'
+    static_configs:
+      - targets:
+        - 202.130.55.238 # Tambahkan ip di sini
+        
+  
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116  # The SNMP exporter's real hostname:port.
+
+# DIGUNAKAN UNTUK ROUTER CISCO
+  - job_name: 'cisco'
+    static_configs:
+      - targets:
+        - 116.206.241.102  # Tambahkan ip di sini
+        - 116.206.233.26
+        - 116.206.241.114
+        - 116.206.242.94
+        - 103.111.191.210
+        - 116.206.233.30
+        - 103.111.191.214
+        - 103.114.111.6
+  
+    metrics_path: /snmp
+    params:
+      auth: [public_v3] #sesuaikan berdasar community
+      module: [if_mib]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116  # The SNMP exporter's real hostname:port.

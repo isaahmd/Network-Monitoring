@@ -1,0 +1,14 @@
+datasources:
+  - name: Prometheus
+    access: proxy
+    type: prometheus
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Mysql
+    type: mysql
+    url: mysql_db:3306
+    user: root
+    database: ping
+    secureJsonData:
+      password: 

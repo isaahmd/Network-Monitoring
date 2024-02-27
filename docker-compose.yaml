@@ -1,0 +1,134 @@
+version: '3'
+
+volumes:
+  prometheus_data:
+    name: prometheus_data
+    driver: local
+
+  snmp_data:
+    name: snmp_data
+    driver: local
+
+  grafana_data:
+    name: grafana_data
+    driver: local
+
+  php_data:
+    name: php_data
+    driver: local
+networks:
+  monitoring:
+    name: monitoring
+
+services:
+
+  php-env:
+    build: .
+    volumes:
+      - ./src:/var/www/html
+      - './config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml'
+      - './config/snmp_exporter/snmp.yml:/etc/snmp_exporter/snmp.yml'
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - monitoring
+    ports:
+      - 80:80
+      - 443:443
+
+  mysql_db:
+    image: mysql:latest
+    
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    networks:
+      - monitoring
+    volumes:
+      - ./mysql-dump:/docker-entrypoint-initdb.d
+    environment:
+      - MYSQL_DATABASE=mysql_db
+      - MYSQL_USER=BRI
+      - MYSQL_PASSWORD=123 # this should live in a env var
+      - MYSQL_ALLOW_EMPTY_PASSWORD=1 # equivalent to True
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: always
+    networks:
+      - monitoring
+    ports:
+      - 8080:80
+    environment:
+      - PMA_ARBITRARY:1
+      - PMA_HOST=mysql_db
+      - PMA_PORT=3306
+    links:
+      - mysql_db
+
+  
+
+  # db: 
+  # image: mysql:latest
+  # environment:
+  #   - MYSQL_DATABASE=php_docker
+  #   - MYSQL_USER=php_docker
+  #   - MYSQL_PASSWORD=password # this should live in a env var
+  #   - MYSQL_ALLOW_EMPTY_PASSWORD=1 # equivalent to True
+  # volumes:
+  #   - "./db:/docker-entrypoint-initdb.d" # this is how we persist a sql db even when container stops
+  # www:
+  #   image: php:apache
+  #   volumes:
+  #     - "./:/var/www/html" # sync the current dir on local machine to the dir of container
+  #   ports:
+  #     - 80:80
+  #     - 443:443 # for future ssl traffic
+  # phpmyadmin:
+  #   image: phpmyadmin/phpmyadmin
+  #   ports:
+  #     - 8001:80
+  #   environment:
+  #     - PMA_HOST=db
+  #     - PMA_PORT=3306
+
+
+
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    restart: always
+    volumes:
+      - './config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml'
+      - 'prometheus_data:/prometheus'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - monitoring
+    ports:
+      - 9090:9090
+
+  snmp-exporter:
+    container_name: snmp-exporter
+    image: prom/snmp-exporter
+    restart: always
+    volumes:
+      - './config/snmp_exporter/snmp.yml:/etc/snmp_exporter/snmp.yml'
+      - 'snmp_data:/snmp_exporter'
+    networks:
+      - monitoring
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    restart: unless-stopped
+    volumes:
+      - 'grafana_data:/var/lib/grafana'
+      - './config/grafana/datasources:/etc/grafana/provisioning/datasources'
+      - './config/grafana/dashboard:/etc/grafana/provisioning/dashboard'
+    networks:
+      - monitoring
+    ports:
+      - 3000:3000
